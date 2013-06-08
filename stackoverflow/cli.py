@@ -62,12 +62,10 @@ def run():
 
     parser.add_argument('-j', '--jar',
                              dest='cookiejar',
-                             default=None,
                              help='Specify where to store the cookies', metavar='FILE')
 
     parser.add_argument('SITE',
                         action='store',
-                        default='stackoverflow.com',
                         help='Canonical name of the targetted SO site')
 
     subparsers = parser.add_subparsers(

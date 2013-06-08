@@ -1,6 +1,195 @@
 Stackoverflow Command Line Utility
 ==================================
 
-This utility enables access to stackoverflow websites' features
+This utility enables access to stackoverflow websites' features. It provides
+a CLI utility, but can be used as a library to access the SO websites. The
+results of the CLI utility is pretty raw on purpose. It is meant to be used
+or extended for other programs.
+
+This utility will connect to your stackoverflow account using either
+stackexchange's openid provider or google's one. You have to set up 
+your openid credentials in the configuration file.
+
+Then it will store your cookies (unless you don't want) so it won't
+authenticate each time you use the utility.
+
+To use it, you need to call a command on a stackoverflow site. To get 
+the list of the sites, you can call `sotool -l` which will return the
+list of all sites.
+
+Then on the given site, you can use one of the following commands: `inbox` to
+do stuff on your notification inbox, `chat` to get the chat system or `qna` for
+the Q&A system of stackoverflow.
+
+On everycommand, you can get the list of subcommands using `--help`.
+
+Usage
+-----
+
+    usage: bin/sotool [-h] [-c FILE] [-l] [-j FILE] SITE {inbox,chat,qna} ...
+
+    Stackoverflow CLI
+
+    positional arguments:
+    SITE                  Canonical name of the targetted SO site
+    {inbox,chat,qna}      Stackoverflow commands
+        inbox               Notification inbox
+        chat                Chat commands
+        qna                 Q&A commands
+
+    optional arguments:
+    -h, --help            show this help message and exit
+    -c FILE, --config FILE
+                            Specify config file
+    -l, --list            List all stackoverflow sites
+    -j FILE, --jar FILE   Specify where to store the cookies
+
+Optional arguments
+------------------
+
+ * `-c/--config`: takes path to configuration file,
+ * `-j/--jar`: takes path to cookies jar file,
+ * `-l`: will return the list of stackoverflow sites.
+
+Commands and subcommands
+------------------------
+
+There are three main commands which gives access to the main features of the
+stackoverflow websites:
+
+ * inbox
+
+It features tow subcommands `list` and `new`. The first one will give all your notifications
+and the second only the unseen ones.
+
+ * chat
+
+it features three commands: `list` to get the list of all the chatrooms, `watch` to watch
+a chatroom in live and `send` to send a message to a chatroom
+
+ * qna
+
+it features two commands: `questions` will gives the list of the questions on the site
+and `answers` will get all answers for a given question.
+
+Examples
+--------
+
+ * chat
+
+Here I get the list of all rooms, watch one and send a message to one
+
+    % sotool stackoverflow.com chat list
+    {   u'31218': {   'last_act': u'1d ago \u2013balwinder',
+                    'name': u'Android Warriors',
+                    'nb_mesgs': u'45',
+                    'nb_users': u'4'},
+        u'31221': {   'last_act': u'1d ago \u2013RSD',
+                    'name': u'CreatedByiPhone',
+                    'nb_mesgs': u'59',
+                    'nb_users': u'2'},
+        u'31241': {   'last_act': u'3d ago \u2013 Alen Joy',
+                    'name': u'Ember.js',
+                    'nb_mesgs': u'0',
+                    'nb_users': u'0'},
+        u'31250': {   'last_act': u'3d ago \u2013 demongolem',
+                    'name': u'Git',
+                    'nb_mesgs': u'0',
+                    'nb_users': u'0'},
+        ....
+        u'31455': {   'last_act': u'5m ago \u2013Edward',
+                    'name': u'make div change position when other d\u2026',
+                    'nb_mesgs': u'30',
+                    'nb_users': u'2'}}
+    % sotool stackoverflow.com chat watch 31455
+    Watching room #31455
+    ....
+            Edward: Muahahahah :-)
+            steo: Il problema &#232; che un amico a cui avevo chiesto ieri alla fine ha risposto
+            steo: e me l&#39;aveva chiesto lui ahaha
+            steo: non ti preoccupare non scervellarti pi&#249; di tanto
+            steo: ti upvoto ;)
+            Edward: Ahahah ok, no problem e buon lavoro!
+    ^C
+    % sotool stackoverflow.com chat send 'Hello world!'
+
+ * qna
+
+Now we get the list of three newest questions, and then we look at the full message and answers for the newest one
+
+    % bin/sotool stackoverflow.com qna questions -s newest -n 3
+    [   {   'answs': u'0',
+            'id': u'17001321',
+            'summary': u'I have a Opencv C++ module, this module is extended to python - \n\n%include "cv.h"\nusing namespace cv;\nstatic PyObject* getcordFunc(PyObject *self, PyObject *args) {\n    VideoCapture cap(0);\n    return ...',
+            'tags': [u'c++', u'python', u'opencv'],
+            'title': u'Extending Python: returning C++ object',
+            'url': u'/questions/17001321/extending-python-returning-c-object',
+            'user': u'Anirudh',
+            'views': u'2',
+            'votes': u'0'},
+        {   'answs': u'0',
+            'id': u'17001320',
+            'summary': u"I'm sorry if it's too stupid question. I cannot find the answer. I know C++ but I always have troubles with external libraries etc. \n\nI don't have much time but I must use Boost test to test my ...",
+            'tags': [u'c++', u'unit-testing', u'testing', u'boost', u'library'],
+            'title': u'Boost test - every suite in other file',
+            'url': u'/questions/17001320/boost-test-every-suite-in-other-file',
+            'user': u'user2466619',
+            'views': u'3',
+            'votes': u'0'},
+        {   'answs': u'0',
+            'id': u'17001318',
+            'summary': u"I'm using cURL for Codeigniter to talk to a RESTFUL Service and using the HTTP verbs to create my methods i.e user_get, user_post _get, _post being the verbs names\n\nI am trying to post some data but ...",
+            'tags': [u'php', u'codeigniter'],
+            'title': u'Codeigniter cURL Post sending as Get',
+            'url': u'/questions/17001318/codeigniter-curl-post-sending-as-get',
+            'user': u'user1074242',
+            'views': u'3',
+            'votes': u'0'}]
+    % bin/sotool stackoverflow.com qna answers 17001321
+    {   'answers': [],
+        'question': {   'comments': [],
+                        'favos': u'',
+                        'tags': ([u'c++', u'python', u'opencv'],),
+                        'text': u'I have a Opencv C++ module, this module is extended to python -\n\n    \n    %include "cv.h"\n    using namespace cv;\n    static PyObject* getcordFunc(PyObject *self, PyObject *args) {\n        VideoCapture cap(0);\n        return Py_BuildValue("O", cap);\n    }\n    //Followed by other functions required for Extending...\n    \n\nI there any way to return the object cap back to the python program. I am\ndoing it so that I can pass to another extended methond.\n\n',
+                        'title': u'Extending Python: returning C++ object',
+                        'users': [   {   'avatar': u'http://www.gravatar.com/avatar/5046948fad5679c3713fd5e8e849e271?s=32&d=identicon&r=PG',
+                                        'last_edit': u'2013-06-08 16:01:17Z',
+                                        'owner': True,
+                                        'reputation': u'173',
+                                        'username': u'Anirudh'}],
+                        'votes': u'0'}}
+
+ * inbox
+
+Now we get the notifications:
+
+    % bin/sotool stackoverflow.com inbox new
+    []
+    % bin/sotool stackoverflow.com inbox list
+    [   {   u'Count': 1,
+            u'CreationDate': u'16 hours ago',
+            u'FaviconUrl': u'http://cdn.sstatic.net/stackoverflow/img/favicon.ico',
+            u'IsNew': False,
+            u'SiteUrl': u'stackoverflow.com',
+            u'Summary': u'@zmo and @RyanSaxe asked for a xattr -l. Do it.  I&#39;m not a Mac user, but I know that the file...',
+            u'Title': u'why are my created files hidden?',
+            u'Type': u'comment',
+            u'Url': u'http://stackoverflow.com/posts/comments/24553594?noredirect=1'},
+        {   u'Count': 1,
+            u'CreationDate': u'23 hours ago',
+            u'FaviconUrl': u'http://cdn.sstatic.net/stackoverflow/img/favicon.ico',
+            u'IsNew': False,
+            u'SiteUrl': u'stackoverflow.com',
+            u'Summary': u'I did try with Request changing the r to upper case but it still gives the same error',
+            u'Title': u'Error in Python2.7 takes exactly 2 arguments (1 given)',
+            u'Type': u'comment',
+            u'Url': u'http://stackoverflow.com/posts/comments/24542986?noredirect=1'},
+    ....
+
+LICENSE
+-------
+
+GNU GPLv3 see LICENSE file
+
 
 

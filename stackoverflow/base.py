@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import re
 import os
 import sys
 import time
@@ -7,6 +8,7 @@ import pprint
 import pickle
 import requests
 import requests.utils
+from html2text import html2text
 from BeautifulSoup import BeautifulSoup
 
 from stackoverflow.utils import unescape
@@ -105,11 +107,105 @@ class StackOverflowBase:
     def lookup_question(self, query):
         pass
 
-    def get_questions(self, sort='newest'):
-        return self.session.get('http://%s/questions?sort=%s' % (self.site, sort))
+    def get_questions(self, sort='newest', number='50'):
+        r = self.session.get('http://%s/questions' % (self.site,),
+                             params={"sort":sort, "pagesize":number})
+        ql = BeautifulSoup(r.text).findAll(attrs={'class': 'question-summary'})
+        for q in ql:
+            yield {
+                "id": q['id'].split('-')[-1],
+                "url": q.find('h3').find('a', href=True)['href'],
+                "title": q.find('h3').text,
+                "views": q.find(attrs={'class': 'views '}).text.split(' ')[0],
+                "votes": q.find(attrs={'class': 'vote-count-post '}).text,
+                "answs": (q.find(attrs={'class': 'status unanswered'}) \
+                        or q.find(attrs={'class': 'status answered'})).find('strong').text,
+                "summary": q.find(attrs={'class': 'excerpt'}).text,
+                "tags": [t.text for t in q.findAll(attrs={'class': 'post-tag'})],
+                "user": q.find(attrs={'class': 'user-details'}).find('a').text
+            }
 
     def get_answers(self, question):
-        pass
+        r = self.session.get('http://%s/questions/%s' % (self.site, question))
+        q = BeautifulSoup(r.text).find(attrs={'class': 'question'})
+        a = BeautifulSoup(r.text).find(attrs={'id': 'answers'})
+        qd = {}
+        ad = []
+
+        qd['title'] = BeautifulSoup(r.text).find(attrs={'id': 'question-header'}).find('h1').text
+        qd['votes'] = q.find(attrs={'class': 'vote-count-post '}).text
+        qd['favos'] = q.find(attrs={'class': 'favoritecount'}).text
+        qd['text'] = html2text(str(BeautifulSoup(r.text).find(attrs={'class': 'post-text'}).extract()))
+        qd['tags'] = [t.text for t in q.findAll(attrs={'class': 'post-tag'})],
+        qd['users'] = []
+        u = q.find(attrs={'class': 'post-signature owner'})
+        for u in u.findAll(attrs={'class': 'user-info '}):
+            avatar = u.find(attrs={'class': 'user-gravatar32'}).find('img')
+            username = u.find(attrs={'class': 'user-details'}).find('a')
+            reputation = u.find(attrs={'class': 'reputation-score'})
+            qd['users'].append({
+                'owner': True,
+                'last_edit': u.find(attrs={'class': 'user-action-time'}).find('span')['title'],
+                'avatar': avatar['src'] if avatar else "",
+                'username': username.text if username else "",
+                'reputation': reputation.text if reputation else ""
+            })
+
+        for u in q.findAll(attrs={'class': 'post-signature'}):
+            for u in u.findAll(attrs={'class': 'user-info '}):
+                avatar = u.find(attrs={'class': 'user-gravatar32'}).find('img')
+                username = u.find(attrs={'class': 'user-details'}).find('a')
+                reputation = u.find(attrs={'class': 'reputation-score'})
+                qd['users'].append({
+                    'last_edit': u.find(attrs={'class': 'user-action-time'}).find('span')['title'],
+                    'avatar': avatar['src'] if avatar else "",
+                    'username': username.text if username else "",
+                    'reputation': reputation.text if reputation else ""
+                })
+        qd['comments'] = []
+        for c in q.findAll(attrs={'class': 'comment'}):
+            qd['comments'].append({
+                'id': c['id'].split('-')[-1],
+                'score': c.find(attrs={'class': 'comment-score'}).text,
+                'text': c.find(attrs={'class': 'comment-copy'}).text,
+                'user': c.find(attrs={'class': 'comment-user'}).text,
+                'last_edit': c.find(attrs={'class': 'comment-date'}).find('span')['title'],
+            })
+
+        for aa in a.findAll(attrs={'class': re.compile(r'^answer( accepted-answer)?$')}):
+            aad = {
+                'id': aa['id'].split('-')[-1],
+                'accepted': 'accepted-answer' in aa['class'],
+                'votes': aa.find(attrs={'class': 'vote-count-post '}).text,
+                'text': html2text(str(aa.find(attrs={'class': 'post-text'}))),
+                'users': [],
+                'comments': []
+            }
+            for u in aa.findAll(attrs={'class': 'post-signature'}):
+                avatar = u.find(attrs={'class': 'user-gravatar32'}).find('img')
+                username = u.find(attrs={'class': 'user-details'}).find('a')
+                reputation = u.find(attrs={'class': 'reputation-score'})
+                aad['users'].append({
+                    'last_edit': u.find(attrs={'class': 'user-action-time'}).find('span')['title'],
+                    'avatar': avatar['src'] if avatar else "",
+                    'username': username.text if username else "",
+                    'reputation': reputation.text if reputation else ""
+                })
+
+            for c in aa.findAll(attrs={'class': 'comment'}):
+                user = c.find(attrs={'class': 'comment-user'})
+                aad['comments'].append({
+                    'id': c['id'].split('-')[-1],
+                    'score': c.find(attrs={'class': 'comment-score'}).text,
+                    'text': c.find(attrs={'class': 'comment-copy'}).text,
+                    'user': user.text if user else "",
+                    'last_edit': c.find(attrs={'class': 'comment-date'}).find('span')['title'],
+                })
+            ad.append(aad)
+
+
+        return dict(question=qd, answers=ad)
+
 
     def get_inbox(self):
         return self.session.get('http://%s/inbox/genuwine' % (self.site,)).json()

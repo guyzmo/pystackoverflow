@@ -144,7 +144,7 @@ def run():
     # Q&A
 
     def qna_questions(so, args):
-        pp.pprint(so.get_questions().text)
+        pp.pprint([q for q in so.get_questions(args.sort, args.number)])
 
     def qna_answers(so, args):
         pp.pprint(so.get_answers(args.QUESTION))
@@ -154,12 +154,30 @@ def run():
 
     qna_ssp = qna_sp.add_subparsers(dest='qna',
                                     help='Commands for the SO Q&A system')
-    qna_ssp.add_parser('questions',
-                       help='List all questions').set_defaults(func=qna_questions)
+    p = qna_ssp.add_parser('questions',
+                           help='List all questions')
+    p.set_defaults(func=qna_questions)
+    p.add_argument('-s', '--sort',
+                   choices=['newest',
+                            'featured',
+                            'frequent',
+                            'votes',
+                            'active',
+                            'unanswered'],
+                   action='store',
+                   dest='sort')
+    p.add_argument('-n', '--number',
+                   action='store',
+                   dest='number')
+
     qna_ssp.add_parser('search',
                        help='Search a question').set_defaults(func=qna_search)
-    qna_ssp.add_parser('answers',
-                       help='Get answers for a question').set_defaults(func=qna_answers)
+    p = qna_ssp.add_parser('answers',
+                       help='Get answers for a question')
+    p.set_defaults(func=qna_answers)
+    p.add_argument('QUESTION',
+                   action='store',
+                   help='Question to get answers\' list')
 
     args = parser.parse_args(sys.argv[1:])
 

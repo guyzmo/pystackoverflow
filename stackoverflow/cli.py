@@ -9,7 +9,7 @@ import argparse
 from stackoverflow.stackexchange import StackExchange
 from stackoverflow.auth_google import StackOverflow_GoogleAuth
 from stackoverflow.auth_stackoverflow import StackOverflow_SOAuth
-from stackoverflow.utils import DictConfig
+from stackoverflow.utils import DictConfig, html2md
 
 def prt(s):
     print s
@@ -109,7 +109,8 @@ def run():
 
     def chat_read(so, args):
         print "Watching room #%d" % (args.ROOM)
-        cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15), e['content']))
+        cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15),
+                                      html2md(e['content'], 140)[:-2]))
         so.connect_to_chat(args.ROOM, cb=cb)
 
     def chat_write(so, args):

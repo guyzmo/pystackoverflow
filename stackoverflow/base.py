@@ -8,10 +8,9 @@ import pprint
 import pickle
 import requests
 import requests.utils
-from html2text import html2text
 from BeautifulSoup import BeautifulSoup
 
-from stackoverflow.utils import unescape
+from stackoverflow.utils import unescape, html2md
 
 
 class StackOverflowBase:
@@ -135,7 +134,7 @@ class StackOverflowBase:
         qd['title'] = BeautifulSoup(r.text).find(attrs={'id': 'question-header'}).find('h1').text
         qd['votes'] = q.find(attrs={'class': 'vote-count-post '}).text
         qd['favos'] = q.find(attrs={'class': 'favoritecount'}).text
-        qd['text'] = html2text(str(BeautifulSoup(r.text).find(attrs={'class': 'post-text'}).extract()))
+        qd['text'] = html2md(str(BeautifulSoup(r.text).find(attrs={'class': 'post-text'}).extract()))
         qd['tags'] = [t.text for t in q.findAll(attrs={'class': 'post-tag'})],
         qd['users'] = []
         u = q.find(attrs={'class': 'post-signature owner'})
@@ -177,7 +176,7 @@ class StackOverflowBase:
                 'id': aa['id'].split('-')[-1],
                 'accepted': 'accepted-answer' in aa['class'],
                 'votes': aa.find(attrs={'class': 'vote-count-post '}).text,
-                'text': html2text(str(aa.find(attrs={'class': 'post-text'}))),
+                'text': html2md(str(aa.find(attrs={'class': 'post-text'}))),
                 'users': [],
                 'comments': []
             }

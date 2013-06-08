@@ -4,6 +4,14 @@ import re
 import htmlentitydefs
 import ConfigParser
 
+from html2text import HTML2Text
+
+def html2md(text, width=0):
+    h = HTML2Text()
+    h.body_width = width
+    return h.handle(text)
+
+
 def unescape(text):
     """
     Removes HTML or XML character references and entities from a text string.

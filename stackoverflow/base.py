@@ -1,24 +1,52 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import time
 import pprint
+import pickle
 import requests
+import requests.utils
 from BeautifulSoup import BeautifulSoup
 
 from stackoverflow.utils import unescape
 
 
 class StackOverflowBase:
-    def __init__(self, username, password, site):
+    def __init__(self, username, password, site, cookies_file=None):
         self.username = username
         self.password = password
         self.site = site
-        self.session = requests.Session()
-        self.authenticate()
+        self.cookies_file = cookies_file
 
-    def authenticate(self):
+    def __enter__(self):
+        self.session = requests.Session()
+        has_cookies = False
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as f:
+                cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+                self.session.cookies = cookies
+                has_cookies = True
+        self.authenticate(cookies=has_cookies)
+        return self
+
+    def __exit__(self, *args):
+        if self.cookies_file:
+            with open(self.cookies_file, 'w') as f:
+                pickle.dump(requests.utils.dict_from_cookiejar(self.session.cookies), f)
+
+    def authenticate(self, cookies=False):
         raise NotImplementedError
+
+    def is_authenticated(self):
+        if self.session.get('http://%s/inbox/genuwine' %
+                            (self.site,)).status_code != 404:
+            return True
+        # if authentication fails, reset cookies
+        cookies = requests.utils.cookiejar_from_dict({})
+        self.session.cookies = cookies
+        return False
+
 
     def connect_to_chat(self, room, cb=lambda e: pprint.PrettyPrinter(indent=4).pprint(e)):
         r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
@@ -73,6 +101,15 @@ class StackOverflowBase:
                 'nb_mesgs': unescape(msgs)
             }
         return roomd
+
+    def lookup_question(self, query):
+        pass
+
+    def get_questions(self, sort='newest'):
+        return self.session.get('http://%s/questions?sort=%s' % (self.site, sort))
+
+    def get_answers(self, question):
+        pass
 
     def get_inbox(self):
         return self.session.get('http://%s/inbox/genuwine' % (self.site,)).json()

@@ -7,7 +7,9 @@ from BeautifulSoup import BeautifulSoup
 from stackoverflow.base import StackOverflowBase
 
 class StackOverflow_GoogleAuth(StackOverflowBase):
-    def authenticate(self):
+    def authenticate(self, cookies=False):
+        if self.is_authenticated():
+            return
         google_accounts_url = 'http://accounts.google.com'
         authentication_url = 'https://accounts.google.com/ServiceLoginAuth'
         stack_overflow_url = 'http://%s/users/authenticate' % (self.site,)

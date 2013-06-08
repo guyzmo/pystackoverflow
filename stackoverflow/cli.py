@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import pprint
 import getpass
@@ -41,7 +42,7 @@ def run():
                                    site['desc'])
         sys.exit(0)
 
-    if args.config:
+    if args.config and os.path.exists(args.config):
         config = DictConfig(args.config).as_dict()
     else:
         config = {
@@ -50,7 +51,7 @@ def run():
                 'username': '',
                 'password': ''},
             'default':{
-                'site': 'stackoverflow.com'
+                'cookiejar': None
             }
         }
 
@@ -58,6 +59,11 @@ def run():
                                      description='Stackoverflow CLI',
                                      parents=[conf_parser])
     parser.set_defaults(**config['default'])
+
+    parser.add_argument('-j', '--jar',
+                             dest='cookiejar',
+                             default=None,
+                             help='Specify where to store the cookies', metavar='FILE')
 
     parser.add_argument('SITE',
                         action='store',
@@ -74,6 +80,8 @@ def run():
                           help = 'Notification inbox')
     chat_sp = subparsers.add_parser('chat',
                           help = 'Chat commands')
+    qna_sp = subparsers.add_parser('qna',
+                          help = 'Q&A commands')
 
     # NOTIFICATION INBOX
 
@@ -133,22 +141,42 @@ def run():
                    action='store',
                    help='message to send to the room')
 
+    # Q&A
+
+    def qna_questions(so, args):
+        pp.pprint(so.get_questions().text)
+
+    def qna_answers(so, args):
+        pp.pprint(so.get_answers(args.QUESTION))
+
+    def qna_search(so, args):
+        pp.pprint(so.lookup_question(args.QUERY))
+
+    qna_ssp = qna_sp.add_subparsers(dest='qna',
+                                    help='Commands for the SO Q&A system')
+    qna_ssp.add_parser('questions',
+                       help='List all questions').set_defaults(func=qna_questions)
+    qna_ssp.add_parser('search',
+                       help='Search a question').set_defaults(func=qna_search)
+    qna_ssp.add_parser('answers',
+                       help='Get answers for a question').set_defaults(func=qna_answers)
+
     args = parser.parse_args(sys.argv[1:])
 
     if 'provider' in config['auth'].keys():
         if config['auth']['provider'] == 'stackoverflow':
-            so = StackOverflow_SOAuth(config['auth']['username'],
-                                      config['auth']['password'],
-                                      args.SITE)
+            StackOverflow = StackOverflow_SOAuth
         elif config['auth']['provider'] == 'google':
-            so = StackOverflow_GoogleAuth(config['auth']['username'],
-                                          config['auth']['password'],
-                                          args.SITE)
+            StackOverflow = StackOverflow_GoogleAuth
         else:
             print "Error: wrong openid provider given: %s" % config['auth']['provider']
             sys.exit(1)
 
-    args.func(so, args)
+    with StackOverflow_SOAuth(config['auth']['username'],
+                              config['auth']['password'],
+                              args.SITE,
+                              args.cookiejar) as so:
+        args.func(so, args)
 
 
 def test():

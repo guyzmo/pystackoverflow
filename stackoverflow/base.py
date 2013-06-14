@@ -12,12 +12,13 @@ from BeautifulSoup import BeautifulSoup
 
 from stackoverflow.utils import unescape, html2md
 
-
 class StackOverflowBase:
     def __init__(self, username, password, site, cookies_file=None):
         self.username = username
         self.password = password
         self.site = site
+        if cookies_file:
+            cookies_file = os.path.expanduser(cookies_file)
         self.cookies_file = cookies_file
 
     def __enter__(self):

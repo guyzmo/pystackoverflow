@@ -66,6 +66,7 @@ def run():
 
     parser.add_argument('-j', '--jar',
                              dest='cookiejar',
+                             default = "~/.so.cookie.jar",
                              help='Specify where to store the cookies', metavar='FILE')
 
     parser.add_argument('SITE',

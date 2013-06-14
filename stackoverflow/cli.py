@@ -28,19 +28,15 @@ def run():
                              dest='config',
                              default='~/.so.config',
                              help='Specify config file', metavar='FILE')
+    conf_parser.add_argument('-C', '--cache',
+                             dest='cache',
+                             default='~/.so.cache.json',
+                             help='Specify cache file', metavar='FILE')
     conf_parser.add_argument('-l', '--list',
                              dest='list',
                              action='store_true',
                              help='List all stackoverflow sites')
     args, remaining_argv = conf_parser.parse_known_args()
-
-    if args.list:
-        for site in StackExchange().list():
-            print "%s %s\n%s%s" % (("<"+site['url']+">").rjust(38),
-                                   site['name'].ljust(35),
-                                   " "*39,
-                                   site['desc'])
-        sys.exit(0)
 
     if args.config and os.path.exists(args.config):
         config = DictConfig(args.config).as_dict()
@@ -54,6 +50,14 @@ def run():
                 'cookiejar': None
             }
         }
+
+    if args.list:
+        for site in StackExchange(args.cache).list_sites():
+            print "{} {}\n{}{}".format(("<"+site['site_url']+">").rjust(38),
+                                       site['name'].ljust(35),
+                                       " "*39,
+                                       site['audience'])
+        sys.exit(0)
 
     parser = argparse.ArgumentParser(prog=sys.argv[0],
                                      description='Stackoverflow CLI',

@@ -1,19 +1,51 @@
 #!/usr/bin/env python
 
+import os
+import json
 import requests
 from BeautifulSoup import BeautifulSoup
 
 from stackoverflow.utils import unescape
 
 class StackExchange:
-    def list(self):
+    def __init__(self, cache):
+        self._cache = os.path.expanduser(cache)
 
-        r = requests.get('http://stackexchange.com/sites',
-                         params={'view': 'list'})
-        l = BeautifulSoup(r.text).findAll(attrs={'class': 'lv-info'})
-        for i in l:
-            d = dict(name = unescape(i.find('h2').text),
-                     url = unescape(i.find('a', href=True)['href']).split('http://')[-1],
-                     desc = unescape(i.find(attrs={'class': 'lv-description'}).text))
-            yield d
+    def list(self):
+        if not os.path.exists(self._cache):
+            cache_dict = {}
+            with open(self._cache, 'w+') as cache:
+                cache.write(json.dumps(cache_dict))
+        else:
+            with open(self._cache, 'r') as cache:
+                cache_dict = json.load(cache)
+
+        if not 'sites' in cache_dict.keys():
+            cache_dict['sites'] = dict()
+
+        r = requests.head('http://api.stackexchange.com/sites')
+        length = r.headers['content-length']
+
+        if 'content-length' in cache_dict['sites'].keys():
+            if length == cache_dict['sites']['content-length']:
+                return cache_dict['sites']
+
+        cache_dict['sites']['content-length'] = length
+        cache_dict['sites'].update(
+            requests.get('http://api.stackexchange.com/sites').json()
+        )
+
+        with open(self._cache, 'w') as cache:
+            cache.write(json.dumps(cache_dict))
+
+        return cache_dict['sites']
+
+    def list_sites(self):
+        for site in self.list()['items']:
+            yield site
+
+    def list_urls(self):
+        for site in self.list()['items']:
+            yield site['site_url']
+
 

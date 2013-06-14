@@ -45,7 +45,8 @@ class DictConfig(ConfigParser.ConfigParser):
     """
     def __init__(self, cf):
         ConfigParser.ConfigParser.__init__(self)
-        self.read(cf)
+        self._path = cf
+        self.load()
 
     def as_dict(self):
         d = dict(self._sections)
@@ -54,4 +55,14 @@ class DictConfig(ConfigParser.ConfigParser):
             d[k].pop('__name__', None)
         return d
 
+    def from_dict(self, d):
+        for k in d:
+            self._sections[k] = d[k]
+
+    def load(self):
+        self.read(self._path)
+
+    def save(self):
+        with open(self._path, 'w') as cf:
+            self.write(cf)
 

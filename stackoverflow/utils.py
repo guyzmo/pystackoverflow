@@ -66,3 +66,10 @@ class DictConfig(ConfigParser.ConfigParser):
         with open(self._path, 'w') as cf:
             self.write(cf)
 
+
+def authenticate(f):
+    def wrapper(so, *args, **kwargs):
+        so.authenticate()
+        f(so, *args, **kwargs)
+    return wrapper
+

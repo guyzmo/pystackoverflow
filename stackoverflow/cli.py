@@ -9,7 +9,7 @@ import argparse
 from stackoverflow.stackexchange import StackExchange
 from stackoverflow.auth_google import StackOverflow_GoogleAuth
 from stackoverflow.auth_stackoverflow import StackOverflow_SOAuth
-from stackoverflow.utils import DictConfig, html2md
+from stackoverflow.utils import DictConfig, html2md, authenticate
 
 def prt(s):
     print s
@@ -88,12 +88,15 @@ def run():
 
     # NOTIFICATION INBOX
 
+    @authenticate
     def inbox_list(so, args):
         pp.pprint(so.get_inbox())
 
+    @authenticate
     def inbox_new(so, args):
         pp.pprint([n for n in so.get_inbox() if n['IsNew'] is True])
 
+    @authenticate
     def inbox_mark(so, args):
         raise NotImplementedError
 
@@ -109,15 +112,18 @@ def run():
 
     # CHAT
 
+    @authenticate
     def chat_list(so, args):
         pp.pprint(so.list_all_rooms())
 
+    @authenticate
     def chat_read(so, args):
         print "Watching room #%d" % (args.ROOM)
         cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15),
                                       html2md(e['content'], 140)[:-2]))
         so.connect_to_chat(args.ROOM, cb=cb)
 
+    @authenticate
     def chat_write(so, args):
         so.send_to_chat(args.ROOM, args.MESSAGE)
 

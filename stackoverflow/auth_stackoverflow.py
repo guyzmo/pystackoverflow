@@ -5,9 +5,8 @@ from BeautifulSoup import BeautifulSoup
 from stackoverflow.base import StackOverflowBase
 
 class StackOverflow_SOAuth(StackOverflowBase):
-    def authenticate(self, cookies=False):
+    def authenticate(self):
         if self.is_authenticated():
-            print "ALREADY AUTHENTICATED"
             return
         r = self.session.get('http://%s/users/login' % self.site)
         fkey = BeautifulSoup(r.text).find(attrs={'name' : 'fkey'})['value']

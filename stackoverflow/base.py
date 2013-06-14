@@ -25,29 +25,31 @@ class StackOverflowBase:
         has_cookies = False
         if self.cookies_file and os.path.exists(self.cookies_file):
             with open(self.cookies_file, 'r') as f:
-                cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+                d = pickle.load(f)
+                cookies = requests.utils.cookiejar_from_dict(d)
                 self.session.cookies = cookies
-                has_cookies = True
-        self.authenticate(cookies=has_cookies)
         return self
 
     def __exit__(self, *args):
+        cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
+        if '.stackoverflow.com' in self.session.cookies.list_domains():
+            cookies = self.session.cookies.get_dict('.stackoverflow.com')
         if self.cookies_file:
             with open(self.cookies_file, 'w') as f:
-                pickle.dump(requests.utils.dict_from_cookiejar(self.session.cookies), f)
+                pickle.dump(cookies, f)
 
     def authenticate(self, cookies=False):
         raise NotImplementedError
 
     def is_authenticated(self):
-        if self.session.get('http://%s/inbox/genuwine' %
-                            (self.site,)).status_code != 404:
+        r = self.session.head('http://%s/inbox/genuwine' %
+                            (self.site,))
+        if r.status_code != 404:
             return True
         # if authentication fails, reset cookies
         cookies = requests.utils.cookiejar_from_dict({})
         self.session.cookies = cookies
         return False
-
 
     def connect_to_chat(self, room, cb=lambda e: pprint.PrettyPrinter(indent=4).pprint(e)):
         r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))

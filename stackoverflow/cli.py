@@ -200,39 +200,11 @@ def run():
             print "Error: wrong openid provider given: %s" % config['auth']['provider']
             sys.exit(1)
 
-    with StackOverflow_SOAuth(config['auth']['username'],
-                              config['auth']['password'],
-                              args.SITE,
-                              args.cookiejar) as so:
+    with StackOverflow(config['auth']['username'],
+                       config['auth']['password'],
+                       args.SITE,
+                       args.cookiejar) as so:
         args.func(so, args)
-
-
-def test():
-    site = raw_input('Choose the stackoverflow site you want:')
-    prov = raw_input('Choose your openid provider [1 for StackOverflow, 2 for Google]: ')
-    name = raw_input('Enter your OpenID address: ')
-    pswd = raw_input('Enter your password: ')
-    if '1' in prov:
-        so = StackOverflow_SOAuth(name, pswd, site)
-    elif '2' in prov:
-        so = StackOverflow_GoogleAuth(name, pswd, site)
-    else:
-        print "Error no openid provider given"
-
-    pp = pprint.PrettyPrinter(indent=4)
-
-    # GET INBOX
-    # pp.pprint(so.get_inbox())
-
-    # GET LIST OF ROOMS
-    # pp.pprint(so.list_all_rooms())
-
-    # SEND DATA TO A CHATROOM
-    # so.send_to_chat(38, "\\\\_o< .o(quack!)")
-
-    # CONNECT AND WATCH A CHATROOM
-    cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15), e['content']))
-    so.connect_to_chat(31366, cb=cb)
 
 
 if __name__ == "__main__":

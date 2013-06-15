@@ -12,104 +12,45 @@ from BeautifulSoup import BeautifulSoup
 
 from stackoverflow.utils import unescape, html2md
 
-class StackOverflowBase:
-    def __init__(self, username, password, site, cookies_file=None):
-        self.username = username
-        self.password = password
-        self.site = site
-        if cookies_file:
-            cookies_file = os.path.expanduser(cookies_file)
-        self.cookies_file = cookies_file
+class StackOverflowException(Exception):
+    pass
 
-    def __enter__(self):
-        self.session = requests.Session()
-        has_cookies = False
-        if self.cookies_file and os.path.exists(self.cookies_file):
-            with open(self.cookies_file, 'r') as f:
-                d = pickle.load(f)
-                cookies = requests.utils.cookiejar_from_dict(d)
-                self.session.cookies = cookies
-        return self
+class StackOverflowAPI():
+    api = "https://api.stackexchange.com/2.1"
+    last_req = 0
+    def query(self, target, **parameters):
+        # throttle to less than 10000 queries per day
+        while time.time() - self.last_req < 0.37: pass
 
-    def __exit__(self, *args):
-        cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
-        if '.stackoverflow.com' in self.session.cookies.list_domains():
-            cookies = self.session.cookies.get_dict('.stackoverflow.com')
-        if self.cookies_file:
-            with open(self.cookies_file, 'w') as f:
-                pickle.dump(cookies, f)
+        parameters['api'] = self.api
+        parameters['site'] = self.site
+        parameters['target'] = target
+        parameters['key'] = '101010'
 
-    def authenticate(self, cookies=False):
-        raise NotImplementedError
+        r = self.session.get('{api}/{target}'.format(api=self.api, target=target),
+                             params=parameters)
+        r = r.json()
+        if 'error_id' in r.keys():
+            raise StackOverflowException('Error #{error_id}: '\
+                                         '{error_name} ({error_message})'.format(**r))
+        return r
 
-    def is_authenticated(self):
-        r = self.session.head('http://%s/inbox/genuwine' %
-                            (self.site,))
-        if r.status_code != 404:
-            return True
-        # if authentication fails, reset cookies
-        cookies = requests.utils.cookiejar_from_dict({})
-        self.session.cookies = cookies
-        return False
 
-    def connect_to_chat(self, room, cb=lambda e: pprint.PrettyPrinter(indent=4).pprint(e)):
-        r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
-        if "You must be" in r.text:
-            raise Exception("Logging error, can't connect to chat")
+class StackOverflowInbox(StackOverflowAPI):
+    def get_inbox(self):
+        return self.query('me/inbox')
 
-        if r.status_code == 404:
-            raise Exception("Room #%d not found." % room)
+class StackOverflowInbox_Soup():
+    def get_inbox(self):
+        return self.session.get('http://%s/inbox/genuwine' % (self.site,)).json()
 
-        fkey = BeautifulSoup(r.text).findAll(attrs={'name' : 'fkey'})[0]['value']
-        lasttime = 0
-        while True:
-            payload = {'fkey': fkey,
-                    'since': lasttime,
-                    'mode': 'Messages' }
-            r = self.session.post("http://chat.%s/chats/%d/events" % (self.site, room), data=payload)
-            data = r.json()
-            for e in data['events']:
-                if 'time_stamp' in e and e['time_stamp'] > lasttime:
-                    if e['room_id'] == room:
-                        if e['event_type'] in (1, 2) and 'content' in e:
-                            cb(e)
-            lasttime = data['sync']
-            time.sleep(2)
-
-    def send_to_chat(self, room, msg):
-        r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
-        if "You must be" in r.text:
-            print "Logging error, can't connect to chat"
-            sys.exit(2)
-
-        fkey = BeautifulSoup(r.text).findAll(attrs={'name' : 'fkey'})[0]['value']
-
-        payload = {'fkey': fkey,
-                'text': msg}
-        self.session.post("http://chat.%s/chats/%d/messages/new" % (self.site, room), data=payload)
-
-    def list_all_rooms(self):
-        r = self.session.get('http://chat.%s/rooms' % (self.site,), params={'tab': 'all', 'sort': 'created'})
-        rooms = BeautifulSoup(r.text).findAll(attrs={'class': 'roomcard'})
-        roomd = {}
-        for room in rooms:
-            r_id = room.get('id').split('-')[-1]
-            name = room.find(attrs={'class': 'room-name'}).text
-            users = room.find(attrs={'class': 'room-user-count'}).text
-            last = room.find(attrs={'class': 'last-activity'}).text
-            msgs = room.find(attrs={'class': 'room-message-count'}).text
-            roomd[r_id] = {
-                'name': unescape(name),
-                'nb_users': unescape(users),
-                'last_act': unescape(last),
-                'nb_mesgs': unescape(msgs)
-            }
-        return roomd
-
+class StackOverflowQNA_Soup():
     def lookup_question(self, query):
         pass
 
-    def get_questions(self, sort='newest', number='50'):
+    def get_questions(self, sort='added', number='50'):
+        if sort == 'added':
+            sort = 'newest'
         r = self.session.get('http://%s/questions' % (self.site,),
                              params={"sort":sort, "pagesize":number})
         ql = BeautifulSoup(r.text).findAll(attrs={'class': 'question-summary'})
@@ -209,7 +150,138 @@ class StackOverflowBase:
         return dict(question=qd, answers=ad)
 
 
-    def get_inbox(self):
-        return self.session.get('http://%s/inbox/genuwine' % (self.site,)).json()
+class StackOverflowQNA(StackOverflowAPI):
+    def lookup_question(self, query):
+        pass
+
+    def get_questions(self, sort='activity', number='50'):
+        if sort == 'active': sort = 'activity'
+        elif sort == 'newest': sort = 'added'
+        else: sort == 'votes'
+
+        r = self.query('questions',
+                       order='desc',
+                       sort=sort,
+                       site=self.site)
+        for item in r['items']:
+            yield {
+                "id": item['question_id'],
+                "url": item['link'],
+                "title": item['title'],
+                "views": item['view_count'],
+                "votes": item['score'],
+                "answs": item['answer_count'],
+                # "summary": item[''],
+                "tags": item['tags'],
+                "user": item['owner']['user_id']
+            }
+
+    def get_answers(self, question, sort='votes'):
+        '''sort can be in 'votes' 'activity' 'creation' '''
+        r = self.query('questions/{}/answers'.format(question,
+                                                     sort=sort))
+        return r
+
+
+
+class StackOverflowChat:
+    def connect_to_chat(self, room, cb=lambda e: pprint.PrettyPrinter(indent=4).pprint(e)):
+        r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
+        if "You must be" in r.text:
+            raise Exception("Logging error, can't connect to chat")
+
+        if r.status_code == 404:
+            raise Exception("Room #%d not found." % room)
+
+        fkey = BeautifulSoup(r.text).findAll(attrs={'name' : 'fkey'})[0]['value']
+        lasttime = 0
+        while True:
+            payload = {'fkey': fkey,
+                    'since': lasttime,
+                    'mode': 'Messages' }
+            r = self.session.post("http://chat.%s/chats/%d/events" % (self.site, room), data=payload)
+            data = r.json()
+            for e in data['events']:
+                if 'time_stamp' in e and e['time_stamp'] > lasttime:
+                    if e['room_id'] == room:
+                        if e['event_type'] in (1, 2) and 'content' in e:
+                            cb(e)
+            lasttime = data['sync']
+            time.sleep(2)
+
+    def send_to_chat(self, room, msg):
+        r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
+        if "You must be" in r.text:
+            print "Logging error, can't connect to chat"
+            sys.exit(2)
+
+        fkey = BeautifulSoup(r.text).findAll(attrs={'name' : 'fkey'})[0]['value']
+
+        payload = {'fkey': fkey,
+                'text': msg}
+        self.session.post("http://chat.%s/chats/%d/messages/new" % (self.site, room), data=payload)
+
+    def list_all_rooms(self):
+        r = self.session.get('http://chat.%s/rooms' % (self.site,), params={'tab': 'all', 'sort': 'created'})
+        rooms = BeautifulSoup(r.text).findAll(attrs={'class': 'roomcard'})
+        roomd = {}
+        for room in rooms:
+            r_id = room.get('id').split('-')[-1]
+            name = room.find(attrs={'class': 'room-name'}).text
+            users = room.find(attrs={'class': 'room-user-count'}).text
+            last = room.find(attrs={'class': 'last-activity'}).text
+            msgs = room.find(attrs={'class': 'room-message-count'}).text
+            roomd[r_id] = {
+                'name': unescape(name),
+                'nb_users': unescape(users),
+                'last_act': unescape(last),
+                'nb_mesgs': unescape(msgs)
+            }
+        return roomd
+
+
+class StackOverflowBase(StackOverflowChat,
+                        StackOverflowInbox_Soup,
+                        StackOverflowQNA_Soup):
+    def __init__(self, username, password, site, cookies_file=None):
+        self.username = username
+        self.password = password
+        self.site = site
+        if cookies_file:
+            cookies_file = os.path.expanduser(cookies_file)
+        self.cookies_file = cookies_file
+
+    def __enter__(self):
+        self.session = requests.Session()
+        has_cookies = False
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as f:
+                d = pickle.load(f)
+                cookies = requests.utils.cookiejar_from_dict(d)
+                self.session.cookies = cookies
+        return self
+
+    def __exit__(self, *args):
+        cookies = requests.utils.dict_from_cookiejar(self.session.cookies)
+        if '.stackoverflow.com' in self.session.cookies.list_domains():
+            cookies = self.session.cookies.get_dict('.stackoverflow.com')
+        if self.cookies_file:
+            with open(self.cookies_file, 'w') as f:
+                pickle.dump(cookies, f)
+
+    def authenticate(self, cookies=False):
+        raise NotImplementedError
+
+    def is_authenticated(self):
+        r = self.session.head('http://%s/inbox/genuwine' %
+                            (self.site,))
+        if r.status_code != 404:
+            return True
+        # if authentication fails, reset cookies
+        cookies = requests.utils.cookiejar_from_dict({})
+        self.session.cookies = cookies
+        return False
+
+
 
 

@@ -19,8 +19,8 @@ long_description = """
 
 """ % read('README.rst')
 
-setup(name='StackOverflow',
-      version='1.1',
+setup(name='pystackoverflow',
+      version='1.2',
       description="Tool to use Stack Overflow services from CLI",
       long_description=long_description,
       classifiers=[

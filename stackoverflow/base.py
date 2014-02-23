@@ -252,6 +252,14 @@ class StackOverflowChat:
             u_desc = 'http://' + self.site + i
             yield (u_nick, u_user, u_name, self.site)
 
+    def get_my_info(self):
+        r = self.session.get('http://%s/' % (self.site,))
+        me = BeautifulSoup(r.text).find(attrs={'class': 'profile-me'})
+        _,_, u_id, u_name = me['href'].split('/')
+        return dict(uid=unescape(u_id),
+                    name=unescape(u_name))
+
+
     def get_room_info(self, room):
         try:
             r = self.session.get('http://chat.%s/rooms/info/%d' % (self.site, room))
@@ -274,6 +282,7 @@ class StackOverflowChat:
                         users=r_users)
         except AttributeError:
             return None
+
 
 
 class StackOverflowBase(StackOverflowChat,

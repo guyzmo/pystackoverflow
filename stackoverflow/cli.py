@@ -86,6 +86,13 @@ def run():
     qna_sp = subparsers.add_parser('qna',
                           help = 'Q&A commands')
 
+    @authenticate
+    def my_data(so, args):
+        pp.pprint(so.get_my_info())
+
+    me_sp = subparsers.add_parser('me',
+                          help = 'My data').set_defaults(func=my_data)
+
     # NOTIFICATION INBOX
 
     @authenticate

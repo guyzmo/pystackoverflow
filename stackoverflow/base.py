@@ -228,6 +228,7 @@ class StackOverflowChat:
         for room in rooms:
             r_id = room.get('id').split('-')[-1]
             name = room.find(attrs={'class': 'room-name'}).text
+            topic = room.find(attrs={'class': 'room-description'}).text
             users = room.find(attrs={'class': 'room-user-count'}).text
             last = room.find(attrs={'class': 'last-activity'}).text
             msgs = room.find(attrs={'class': 'room-message-count'}).text
@@ -235,9 +236,44 @@ class StackOverflowChat:
                 'name': unescape(name),
                 'nb_users': unescape(users),
                 'last_act': unescape(last),
-                'nb_mesgs': unescape(msgs)
+                'nb_mesgs': unescape(msgs),
+                'topic': unescape(topic),
             }
         return roomd
+
+    def get_room_users(self, room):
+        r = self.session.get('http://chat.%s/rooms/info/%d' % (self.site, room))
+        users = BeautifulSoup(r.text).findAll(attrs={'class': 'user-header'})
+        for user in users:
+            u_name = user['title']
+            i = user.find('a')['href']
+            u_nick = i.split('/')[-1]
+            u_user = i.split('/')[2]
+            u_desc = 'http://' + self.site + i
+            yield (u_nick, u_user, u_name, self.site)
+
+    def get_room_info(self, room):
+        try:
+            r = self.session.get('http://chat.%s/rooms/info/%d' % (self.site, room))
+            t = BeautifulSoup(r.text).find(attrs={'class': 'xxl-info-layout'})
+            r_name = t.find('h1').text
+            r_topic = t.find('p').text
+            r_tags = [unescape(tag.text) for tag in t.findAll(attrs={'class': 'tag'})]
+            users = BeautifulSoup(r.text).findAll(attrs={'class': 'user-header'})
+            r_users = []
+            for user in users:
+                u_name = user['title']
+                i = user.find('a')['href']
+                u_nick = i.split('/')[-1]
+                u_user = i.split('/')[2]
+                u_desc = 'http://' + self.site + i
+                r_users.append((u_nick, u_user, u_name, self.site))
+            return dict(name=unescape(r_name),
+                        topic=unescape(r_topic),
+                        tags=r_tags,
+                        users=r_users)
+        except AttributeError:
+            return None
 
 
 class StackOverflowBase(StackOverflowChat,

@@ -117,6 +117,15 @@ def run():
         pp.pprint(so.list_all_rooms())
 
     @authenticate
+    def chat_room_users(so, args):
+        for u in so.get_room_users(args.ROOM):
+            pp.pprint(u)
+
+    @authenticate
+    def chat_room_info(so, args):
+        pp.pprint(so.get_room_info(args.ROOM))
+
+    @authenticate
     def chat_read(so, args):
         print "Watching room #%d" % (args.ROOM)
         cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15),
@@ -133,6 +142,22 @@ def run():
                                        help='Commands for the SO chat system')
     chat_ssp.add_parser('list',
                  help='List all rooms').set_defaults(func=chat_list)
+
+    p = chat_ssp.add_parser('info',
+                 help='Get room info')
+    p.set_defaults(func=chat_room_info)
+    p.add_argument('ROOM',
+                   action='store',
+                   type=int,
+                   help='Id of the room to get info')
+
+    p = chat_ssp.add_parser('users',
+                 help='Get room user list')
+    p.set_defaults(func=chat_room_users)
+    p.add_argument('ROOM',
+                   action='store',
+                   type=int,
+                   help='Id of the room to get the list of users')
 
     p = chat_ssp.add_parser('watch',
                  help='Watch a room')

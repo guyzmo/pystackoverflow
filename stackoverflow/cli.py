@@ -121,7 +121,9 @@ def run():
         print "Watching room #%d" % (args.ROOM)
         cb = lambda e:prt("%s: %s" % (e['user_name'].rjust(15),
                                       html2md(e['content'], 140)[:-2]))
-        so.connect_to_chat(args.ROOM, cb=cb)
+        refresh = so.connect_to_chat(args.ROOM, cb=cb)
+        while True:
+            refresh()
 
     @authenticate
     def chat_write(so, args):

@@ -194,20 +194,20 @@ class StackOverflowChat:
             raise Exception("Room #%d not found." % room)
 
         fkey = BeautifulSoup(r.text).findAll(attrs={'name' : 'fkey'})[0]['value']
-        lasttime = 0
-        while True:
-            payload = {'fkey': fkey,
-                    'since': lasttime,
-                    'mode': 'Messages' }
+        payload = {'fkey': fkey,
+                'since': 0,
+                'mode': 'Messages' }
+        def refresh():
             r = self.session.post("http://chat.%s/chats/%d/events" % (self.site, room), data=payload)
             data = r.json()
             for e in data['events']:
-                if 'time_stamp' in e and e['time_stamp'] > lasttime:
+                if 'time_stamp' in e and e['time_stamp'] > payload['since']:
                     if e['room_id'] == room:
                         if e['event_type'] in (1, 2) and 'content' in e:
                             cb(e)
-            lasttime = data['sync']
+            payload['since'] = data['sync']
             time.sleep(2)
+        return refresh
 
     def send_to_chat(self, room, msg):
         r = self.session.get('http://chat.%s/rooms/%d/chat-feedback' % (self.site, room))
